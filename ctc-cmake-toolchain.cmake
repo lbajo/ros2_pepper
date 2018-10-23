@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+
 ## Based on Aldebaran's CTC toolchain
 ## Copyright (C) 2011-2014 Aldebaran
 
@@ -32,6 +33,12 @@ set(ROS2_PEPPER $ENV{ROS2_PEPPER})
 if(" " STREQUAL "${ROS2_PEPPER} ")
   set(ROS2_PEPPER ${CMAKE_CURRENT_LIST_DIR})
 endif()
+
+set(INSTALL_ROOT $ENV{PEPPER_INSTALL_ROOT})
+if(" " STREQUAL "${INSTALL_ROOT} ")
+	set(INSTALL_ROOT "System")
+endif()
+
 
 set(Eigen3_DIR ${ROS2_PEPPER}/cmake CACHE INTERNAL "" FORCE)
 
@@ -184,25 +191,22 @@ elseif("${TARGET_ARCH}" STREQUAL "arm")
   set(CMAKE_C_FLAGS="${CMAKE_C_FLAGS} -faggressive-loop-optimizations -ftree-vectorize -fpredictive-commoning")
 endif()
 
-if(NOT DEFINED ROS_PEPPER_LINK_DIRECTORIES)
-  set(ROS_PEPPER_LINK_DIRECTORIES
-    "\
-    -L${ALDE_CTC_CROSS}/boost/lib \
-    -L${ALDE_CTC_CROSS}/bzip2/lib \
-    -L${ALDE_CTC_CROSS}/icu/lib \
-    -L${ALDE_CTC_CROSS}/jpeg/lib \
-    -L${ALDE_CTC_CROSS}/png/lib \
-    -L${ALDE_CTC_CROSS}/tiff/lib \
-    -L${ALDE_CTC_CROSS}/zlib/lib \
-    -L${ALDE_CTC_CROSS}/xz_utils/lib \
-    -L${ALDE_CTC_CROSS}/openssl/lib \
-    "
-    CACHE INTERNAL ""
-  )
-
-  set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} ${ROS_PEPPER_LINK_DIRECTORIES}" CACHE INTERNAL "")
-  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=gnu++11 ${ROS_PEPPER_LINK_DIRECTORIES}" CACHE INTERNAL "")
-endif()
+set(_library_dirs
+  "\
+  -L${ALDE_CTC_CROSS}/boost/lib \
+  -L${ALDE_CTC_CROSS}/bzip2/lib \
+  -L${ALDE_CTC_CROSS}/icu/lib \
+  -L${ALDE_CTC_CROSS}/jpeg/lib \
+  -L${ALDE_CTC_CROSS}/png/lib \
+  -L${ALDE_CTC_CROSS}/tiff/lib \
+  -L${ALDE_CTC_CROSS}/zlib/lib \
+  -L${ALDE_CTC_CROSS}/xz_utils/lib \
+  -L${ALDE_CTC_CROSS}/openssl/lib \
+  -L/home/nao/${INSTALL_ROOT}/ros1_dependencies/lib \
+  "
+)
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -std=gnu11 ${_library_dirs}" CACHE INTERNAL "")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14 ${_library_dirs}" CACHE INTERNAL "")
 
 ##
 # Make sure we don't have to relink binaries when we cross-compile
@@ -216,6 +220,7 @@ set(Boost_NO_SYSTEM_PATHS ON CACHE INTERNAL "" FORCE)
 set(Boost_INCLUDE_DIR "${ALDE_CTC_CROSS}/boost/include" CACHE INTERNAL "" FORCE)
 set(Boost_PYTHON_FOUND 1 CACHE INTERNAL "" FORCE)
 set(Boost_PYTHON_LIBRARY "${ALDE_CTC_CROSS}/boost/lib/libboost_python-2.7.so" CACHE INTERNAL "" FORCE)
+set(BOOST_ROOT "${ALDE_CTC_CROSS}/boost/" CACHE INTERNAL "" FORCE)
 
 set(Boost_DEBUG 1 CACHE INTERNAL "" FORCE)
 set(Boost_DETAILED_FAILURE_MSG 1 CACHE INTERNAL "" FORCE)
@@ -240,7 +245,12 @@ set(TIFF_LIBRARY "${ALDE_CTC_CROSS}/tiff/lib/libtiff.so" CACHE INTERNAL "" FORCE
 set(TIFF_INCLUDE_DIR "${ALDE_CTC_CROSS}/tiff/include" CACHE INTERNAL "" FORCE)
 
 set(PNG_LIBRARY "${ALDE_CTC_CROSS}/png/lib/libpng.so" CACHE INTERNAL "" FORCE)
-set(PNG_PNG_INCLUDE_DIR "${ALDE_CTC_CROSS}/png/include" CACHE INTERNAL "" FORCE)
+set(PNG_INCLUDE_DIR "${ALDE_CTC_CROSS}/png/include" CACHE INTERNAL "" FORCE)
+
+set(YAML_CPP_LIBRARIES "/home/nao/${INSTALL_ROOT}/ros1_dependencies/lib/libyaml-cpp.so" CACHE INTERNAL "" FORCE)
+set(YAML_CPP_INCLUDE_DIR "/home/nao/${INSTALL_ROOT}/ros1_dependencies/include" CACHE INTERNAL "" FORCE)
+
+set(EIGEN_INCLUDE_DIR "${ALDE_CTC_CROSS}/eigen3/include/eigen3" CACHE INTERNAL "" FORCE)
 
 link_directories(${ALDE_CTC_CROSS}/boost/lib)
 link_directories(${ALDE_CTC_CROSS}/bzip2/lib)
@@ -263,6 +273,13 @@ link_directories(${ALDE_CTC_CROSS}/vorbis/lib)
 link_directories(${ALDE_CTC_CROSS}/xz_utils/lib)
 link_directories(${ALDE_CTC_CROSS}/zlib/lib)
 link_directories(${ALDE_CTC_CROSS}/openssl/lib)
+link_directories(/home/nao/${INSTALL_ROOT}/ros1_dependencies/lib)
+
+include_directories(${ALDE_CTC_CROSS}/bzip2/include)
+include_directories(${ALDE_CTC_CROSS}/eigen3/include)
+
+include_directories(${ALDE_CTC_CROSS}/openssl/include)
+include_directories(/home/nao/${INSTALL_ROOT}/ros1_dependencies/include)
 
 set(_link_flags "")
 
@@ -273,6 +290,7 @@ if(
   PROJECT_NAME STREQUAL "rosbag" OR
   PROJECT_NAME STREQUAL "rosconsole_bridge" OR
   PROJECT_NAME STREQUAL "image_transport" OR
+  PROJECT_NAME STREQUAL "camera_calibration_parsers" OR
   PROJECT_NAME STREQUAL "diagnostic_updater" OR
   PROJECT_NAME STREQUAL "tf2_ros" OR
   PROJECT_NAME STREQUAL "tf" OR
@@ -330,8 +348,8 @@ elseif(
     -lz \
     "
   )
-elseif(
-  PROJECT_NAME STREQUAL "PCL"
+  elseif(
+        PROJECT_NAME STREQUAL "PCL"
 )
   set(_link_flags
     "\
@@ -339,21 +357,23 @@ elseif(
     -lz \
     "
   )
-elseif(
-  PROJECT_NAME STREQUAL "rosauth"
-)
-  set(_link_flags
-    "\
-    -licudata \
-    -licui18n \
-    -licuuc \
-    -lcrypto \
-    -lz \
-    "
-  )
+  elseif(
+       PROJECT_NAME STREQUAL "rosauth"
+   )
+   set(_link_flags
+     "\
+     -licudata \
+     -licui18n \
+     -licuuc \
+     -lcrypto \
+     -lz \
+     "
+     )
+   include_directories(${ALDE_CTC_CROSS}/openssl/include)
+
 endif()
 
-set(EIGEN3_INCLUDE_DIR ${ALDE_CTC_CROSS}/eigen3/include/eigen3/ CACHE INTERNAL "" FORCE)
+set(EIGEN3_INCLUDE_DIR "${ALDE_CTC_CROSS}/eigen3/include/eigen3/" CACHE INTERNAL "" FORCE)
 set(EIGEN3_FOUND TRUE CACHE INTERNAL "" FORCE)
 
 set(CMAKE_EXE_LINKER_FLAGS "-Wl,--as-needed,--sysroot,${ALDE_CTC_SYSROOT}/ ${_link_flags}" CACHE INTERNAL "")
