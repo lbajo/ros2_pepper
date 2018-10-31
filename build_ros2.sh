@@ -23,18 +23,20 @@ fi
 mkdir -p ccache-build/
 mkdir -p pepper_ament_ws/src
 mkdir -p pepper_ros2_ws/src
-mkdir -p pepper_ament_ws/cmake
-mkdir -p pepper_ros2_ws/src
-mkdir -p pepper_ros2_ws/cmake
+#mkdir -p pepper_ament_ws/cmake
+#m#kdir -p pepper_ros2_ws/cmake
 mkdir -p ${HOST_INSTALL_ROOT}/ros2_inst
 
 cp repos/pepper_ament.repos pepper_ament_ws/
 cp repos/pepper_ros2.repos pepper_ros2_ws/
 cp ctc-cmake-toolchain_ros2.cmake pepper_ros2_ws/
-cp cmake/eigen3-config.cmake pepper_ros2_ws/cmake
+#cp ctc-cmake-toolchain.cmake pepper_ros1_ws/
+#cp cmake/eigen3-config.cmake pepper_ros2_ws/cmake
 
 docker run -it --rm \
   -u $(id -u $USER) \
+  -e HOME=/home/nao \
+  -e CCACHE_DIR=/home/nao/.ccache \
   -e PYTHON3_VERSION=${PYTHON3_VERSION} \
   -e PEPPER_INSTALL_ROOT=${PEPPER_INSTALL_ROOT} \
   -v ${ALDE_CTC_CROSS}:/home/nao/ctc \
@@ -72,21 +74,28 @@ docker run -it --rm \
   -v ${HOST_INSTALL_ROOT}/Python-${PYTHON3_VERSION}:/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}-pepper:ro \
   -v ${ALDE_CTC_CROSS}:/home/nao/ctc:ro \
   -v ${HOST_INSTALL_ROOT}/ros1_dependencies:/home/nao/${PEPPER_INSTALL_ROOT}/ros1_dependencies:ro \
+  -v ${HOST_INSTALL_ROOT}/ros1_inst:/home/nao/${PEPPER_INSTALL_ROOT}/ros1_inst:ro \
   -v ${HOST_INSTALL_ROOT}/ros2_inst:/home/nao/${PEPPER_INSTALL_ROOT}/ros2_inst:rw \
+  -v ${PWD}/pepper_ros1_ws:/home/nao/pepper_ros1_ws \
   -v ${PWD}/pepper_ament_ws:/home/nao/pepper_ament_ws \
   -v ${PWD}/pepper_ros2_ws:/home/nao/pepper_ros2_ws \
   ros2-pepper \
   bash -c "\
     export LD_LIBRARY_PATH=/home/nao/ctc/openssl/lib:/home/nao/ctc/curl/lib:/home/nao/ctc/zlib/lib:/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON2_VERSION}/lib:/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/lib && \
-    export PKG_CONFIG_PATH=/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON2_VERSION}/lib/pkgconfig:/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/lib/pkgconfig:/home/nao/${PEPPER_INSTALL_ROOT}/ros1_dependencies/lib/pkgconfig && \
+    export PKG_CONFIG_PATH=/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON2_VERSION}/lib/pkgconfig:/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/lib/pkgconfig:/home/nao/${PEPPER_INSTALL_ROOT}/ros1_dependencies/lib/pkgconfig:/home/nao/${PEPPER_INSTALL_ROOT}/ros1_inst/lib/pkgconfig && \
     export PATH=/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON2_VERSION}/bin:/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/bin:${PATH} && \
     source /home/nao/pepper_ament_ws/install_isolated/local_setup.bash && \
     cd pepper_ros2_ws && \
     vcs import src < pepper_ros2.repos && \
     ament build \
       --install-space /home/nao/${PEPPER_INSTALL_ROOT}/ros2_inst \
-      --isolated \
+      --isolated --skip-packages resource_retriever composition urdfdom urdf robot_state_publisher ros1_bridge\
       --cmake-args \
+        -Dorocos_kdl_DIR=/home/nao/${PEPPER_INSTALL_ROOT}/ros1_inst/share/orocos_kdl \
+        -Dnaoqi_libqi_DIR=/home/nao/${PEPPER_INSTALL_ROOT}/ros1_inst/share/naoqi_libqi/cmake \
+        -Dnaoqi_libqicore_DIR=/home/nao/${PEPPER_INSTALL_ROOT}/ros1_inst/share/naoqi_libqicore/cmake \
+        -DOPENSSL_ROOT_DIR=/home/nao/ctc/openssl \
+        -DOPENSSL_LIBRARIES=/home/nao/ctc/openssl/lib \
         -DCATKIN_ENABLE_TESTING=OFF \
         -DENABLE_TESTING=OFF \
         -DPYTHON_EXECUTABLE=/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/bin/python3 \
@@ -97,7 +106,6 @@ docker run -it --rm \
         -DTHIRDPARTY_Asio=ON \
         -DCMAKE_TOOLCHAIN_FILE=/home/nao/pepper_ros2_ws/ctc-cmake-toolchain_ros2.cmake \
         -DALDE_CTC_CROSS=/home/nao/ctc \
-        -DCMAKE_FIND_ROOT_PATH=\"/home/nao/pepper_ament_ws/install_isolated;/home/nao/${PEPPER_INSTALL_ROOT}/ros2_inst;/home/nao/pepper_ros2_ws/src/eProsima/Fast-RTPS/thirdparty;/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON2_VERSION}-pepper;/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}-pepper;/home/nao/${PEPPER_INSTALL_ROOT}/ros2_inst;/home/nao/${PEPPER_INSTALL_ROOT}/ros2_inst/fastcdr;/home/nao/ctc\" \
-        -DCMAKE_PREFIX_PATH=\"/home/nao/ctc/opencv2/share/OpenCV;/home/nao/pepper_ros2_ws/cmake\" \
+        -DCMAKE_FIND_ROOT_PATH=\"/home/nao/pepper_ament_ws/install_isolated;/home/nao/${PEPPER_INSTALL_ROOT}/ros2_inst;/home/nao/pepper_ros2_ws/src/eProsima/Fast-RTPS/thirdparty;/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON2_VERSION}-pepper;/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}-pepper;/home/nao/${PEPPER_INSTALL_ROOT}/ros1_dependencies;/home/nao/${PEPPER_INSTALL_ROOT}/ros1_inst;/home/nao/${PEPPER_INSTALL_ROOT}/ros2_inst;/home/nao/${PEPPER_INSTALL_ROOT}/ros2_inst/fastcdr;/home/nao/ctc\" \
       --"
 cp ${PWD}/setup_ros2_pepper.bash ${HOST_INSTALL_ROOT}/setup_ros2_pepper.bash

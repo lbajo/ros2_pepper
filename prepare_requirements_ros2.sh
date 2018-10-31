@@ -5,6 +5,10 @@ set -euf -o pipefail
 PYTHON3_VERSION=3.6.1
 
 HOST_INSTALL_ROOT="${BASE_ROOT:-${PWD}}/"System
+#echo HOST_INSTALL_ROOT /home/ubuntu/pepper_root/System
+#echo $BASE_ROOT /home/ubuntu/pepper_root
+#echo $PWD /home/ubuntu/pepper_root/ros2_pepper
+
 PEPPER_INSTALL_ROOT=System
 
 if [ -z "$ALDE_CTC_CROSS" ]; then
@@ -25,6 +29,7 @@ mkdir -p ${HOST_INSTALL_ROOT}/Python-${PYTHON3_VERSION}
 
 docker run -it --rm \
   -u $(id -u $USER) \
+  -e PEPPER_INSTALL_ROOT=${PEPPER_INSTALL_ROOT} \
   -e PYTHON3_VERSION=${PYTHON3_VERSION} \
   -v ${PWD}/ccache-build:/home/nao/.ccache \
   -v ${PWD}/Python-${PYTHON3_VERSION}:/home/nao/Python-${PYTHON3_VERSION}-src \
@@ -73,7 +78,7 @@ docker run -it --rm \
     mkdir -p Python-${PYTHON3_VERSION}-src/build-pepper && \
     cd Python-${PYTHON3_VERSION}-src/build-pepper && \
     export LD_LIBRARY_PATH=/home/nao/ctc/openssl/lib:/home/nao/ctc/zlib/lib:/home/nao/Python-${PYTHON3_VERSION}-host/lib && \
-    export PATH=/home/nao/Python-${PYTHON3_VERSION}-host/bin:\${PATH} && \
+    export PATH=/home/nao/Python-${PYTHON3_VERSION}-host/bin:${PATH} && \
     ../configure \
       --prefix=/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION} \
       --host=i686-aldebaran-linux-gnu \
@@ -84,7 +89,7 @@ docker run -it --rm \
       ac_cv_file__dev_ptc=no && \
     make -j4 && \
     export LD_LIBRARY_PATH=/home/nao/ctc/openssl/lib:/home/nao/ctc/zlib/lib:/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/lib && \
-    export PATH=/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/bin:\${PATH} && \
+    export PATH=/home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/bin:${PATH} && \
     make install && \
     wget -O - -q https://bootstrap.pypa.io/get-pip.py | /home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/bin/python3 && \
     /home/nao/${PEPPER_INSTALL_ROOT}/Python-${PYTHON3_VERSION}/bin/pip3 install empy catkin-pkg setuptools vcstool pyparsing"
